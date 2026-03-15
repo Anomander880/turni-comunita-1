@@ -25,9 +25,11 @@ st.title("📅 Gestione Turni - Comunità")
 
 staff = {"Antonella": 30, "Margherita": 30, "Marika": 30, "Antonio": 30, "Domenico": 30, "Claudio": 38, "Fabio": 12}
 giorni = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"]
-slot_nomi = ["Mattina 1", "Mattina 2", "Pomeriggio 1", "Pomeriggio 2", "Pomeriggio 3", "Notte"]
+slot_turni = ["Mattina 1", "Mattina 2", "Pomeriggio 1", "Pomeriggio 2", "Pomeriggio 3", "Notte"]
+slot_extra = ["SMONTO", "RIPOSO"]
+slot_nomi = slot_turni + slot_extra
 
-DB_FILE = "dati_turni_v5.csv"
+DB_FILE = "dati_turni_v6.csv"
 
 if os.path.exists(DB_FILE):
     df_salvato = pd.read_csv(DB_FILE, index_col=0)
@@ -44,9 +46,10 @@ cols = st.columns(7)
 for i, gg in enumerate(giorni):
     with cols[i]:
         st.error(f"### {gg}")
-        for s in slot_nomi:
+        
+        # --- SEZIONE TURNI ATTIVI ---
+        for s in slot_turni:
             st.markdown(f"**{s}**")
-            
             val_prec = df_salvato.at[s, gg] if s in df_salvato.index else "Seleziona..."
             lista_nomi = ["Seleziona..."] + list(staff.keys())
             idx_prec = lista_nomi.index(val_prec) if val_prec in lista_nomi else 0
@@ -69,13 +72,18 @@ for i, gg in enumerate(giorni):
             
             if scelta != "Seleziona...":
                 ore_lavorate_settimana[scelta] += h_eff
-                if is_notte:
-                    st.caption(f"Effettive: {h_eff}h")
-                else:
-                    st.caption(f"{h_eff}h")
+                st.caption(f"{h_eff}h" if not is_notte else f"Effettive: {h_eff}h")
             st.divider()
 
+        # --- SEZIONE EXTRA (SMONTO/RIPOSO) ---
+        st.warning(f"**STATO {gg}**")
+        for s in slot_extra:
+            val_prec_ex = df_salvato.at[s, gg] if s in df_salvato.index else "Seleziona..."
+            idx_ex = lista_nomi.index(val_prec_ex) if val_prec_ex in lista_nomi else 0
+            st.selectbox(f"{s}", lista_nomi, index=idx_ex, key=f"p_{gg}_{s}")
+
 # --- TASTI DI SALVATAGGIO ED ESPORTAZIONE ---
+st.divider()
 c1, c2 = st.columns(2)
 
 with c1:
@@ -88,7 +96,6 @@ with c1:
         st.success("Dati memorizzati sul server!")
 
 with c2:
-    # Creazione file Excel in memoria
     output = io.BytesIO()
     df_export = pd.DataFrame(index=slot_nomi, columns=giorni)
     for g in giorni:
@@ -106,7 +113,6 @@ with c2:
     )
 
 # --- REPORT ORE ---
-st.divider()
 st.header("📊 Resoconto Ore Effettive")
 r_cols = st.columns(len(staff))
 for i, (nome, ore) in enumerate(ore_lavorate_settimana.items()):
